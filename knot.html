@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html>
+
+<script id="vertex-shader-gouraud" type="x-shader/x-vertex">
+attribute  vec4 vPosition;
+varying vec3 N, L, E;
+attribute vec4 vNormal;
+varying vec4 fColor;
+uniform vec4 ambientProduct, diffuseProduct, specularProduct;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+uniform vec4 lightPosition;
+uniform float shininess;
+uniform mat3 normalMatrix;
+uniform vec4 vColor;
+
+varying vec3 V;
+attribute vec2 vTexCoord;
+uniform vec3 objTangent;
+varying vec2 fTexCoord;
+varying vec3 Le;
+
+
+void main() 
+{
+    vec3 pos = (modelViewMatrix * vPosition).xyz;
+
+    if(lightPosition.w == 0.0) L = normalize(lightPosition.xyz);
+    else L = normalize( lightPosition.xyz - pos );
+
+    E =  -normalize(pos);
+    vec3 H = normalize( L + E );
+    N = normalize( normalMatrix*vNormal.xyz);
+
+    fTexCoord = vTexCoord;
+            /*vec3 eyeLightPos = (modelViewMatrix*lightPosition).xyz;
+            vec3 T  = normalize(normalMatrix*objTangent);
+            vec3 B = cross(N, T);
+            Le.x = dot(T, eyeLightPos-pos);
+            Le.y = dot(B, eyeLightPos-pos);
+            Le.z = dot(N, eyeLightPos-pos);
+            Le = normalize(Le);
+            V.x = dot(T, -pos);
+            V.y = dot(B, -pos);
+            V.z = dot(N, -pos);
+            V = normalize(V);*/
+
+            
+
+    vec4 ambient = ambientProduct;
+    float Kd = max( dot(L, N), 0.0 );
+    vec4 diffuse = Kd*diffuseProduct;
+    float Ks = pow( max(dot(N, H), 0.0), shininess );
+    vec4  specular = Ks * specularProduct;
+    
+    if( dot(L, N) < 0.0 ) {
+        specular = vec4(0.0, 0.0, 0.0, 1.0);
+    } 
+
+    fColor =   vColor + diffuse + ambient  + specular;// + vec4(Kdr*diffuseProduct.xyz, 1.0);
+    fColor.a = 1.0;
+    gl_Position = projectionMatrix*modelViewMatrix*vPosition;
+} 
+</script>
+
+<script id="fragment-shader-gouraud" type="x-shader/x-fragment">
+precision mediump float;
+varying vec4 fColor;
+
+//varying vec3 Le;
+varying vec2 fTexCoord;
+
+//uniform sampler2D texMap;
+//uniform vec4 diffuseProduct;
+uniform sampler2D texture;
+
+void main()
+{
+    /*vec4 Ne = texture2D(texMap, fTexCoord);
+    vec3 NN =  normalize(2.0*Ne.xyz-1.0);
+    vec3 LL = normalize(Le);
+    float Kdr = max(dot(NN, LL), 0.0);*/
+    gl_FragColor = fColor*texture2D( texture, fTexCoord ); // vec4(Kdr*diffuseProduct.xyz, 1.0);
+}
+</script>
+
+<script id="vertex-shader-phong" type="x-shader/x-vertex">
+    attribute  vec4 vPosition;
+    varying vec3 N, L, E;
+    attribute vec4 vNormal;
+    uniform mat4 modelViewMatrix;
+    uniform mat4 projectionMatrix;
+    uniform vec4 lightPosition;
+    uniform mat3 normalMatrix;
+    uniform vec4 vColor;
+    varying vec4 aColor;
+    
+    varying vec3 V;
+    attribute vec2 vTexCoord;
+    uniform vec3 objTangent;
+    varying vec2 fTexCoord;
+    varying vec3 Le;
+    //uniform sampler2D texMap;
+    
+    void main() 
+    {
+        vec3 pos = (modelViewMatrix * vPosition).xyz;
+    
+        if(lightPosition.w == 0.0) L = normalize(lightPosition.xyz);
+        else L = normalize( lightPosition.xyz - pos );
+    
+        E =  -normalize(pos);
+        //vec3 H = normalize( L + E );
+        N = normalize( normalMatrix*vNormal.xyz);
+    
+        fTexCoord = vTexCoord;
+                /*vec3 eyeLightPos = (modelViewMatrix*lightPosition).xyz;
+                vec3 T  = normalize(normalMatrix*objTangent);
+                vec3 B = cross(N, T);
+                Le.x = dot(T, eyeLightPos-pos);
+                Le.y = dot(B, eyeLightPos-pos);
+                Le.z = dot(N, eyeLightPos-pos);
+                Le = normalize(Le);
+                V.x = dot(T, -pos);
+                V.y = dot(B, -pos);
+                V.z = dot(N, -pos);
+                V = normalize(V);
+                vec4 Ne = texture2D(texMap, fTexCoord);
+                vec3 NN =  normalize(2.0*Ne.xyz-1.0);
+                vec3 LL = normalize(Le);
+                float Kdr = max(dot(NN, LL), 0.0);*/
+    
+        aColor = vColor;        
+        gl_Position = projectionMatrix*modelViewMatrix*vPosition;
+    } 
+    </script>
+    
+    <script id="fragment-shader-phong" type="x-shader/x-fragment">
+    precision mediump float;
+   
+    varying  vec2 fTexCoord;
+    varying vec4 aColor;
+
+    uniform vec4 ambientProduct;
+    uniform vec4 diffuseProduct;
+    uniform vec4 specularProduct;
+    uniform float shininess;
+    varying vec3 N, L, E;
+    
+    uniform sampler2D texture;
+    
+    void main()
+    {
+        vec4 fColor;
+    
+        vec3 H = normalize( L + E );
+        vec4 ambient = ambientProduct;
+
+        float Kd = max( dot(L, N), 0.0 );
+        vec4  diffuse = Kd*diffuseProduct;
+
+        float Ks = pow( max(dot(N, H), 0.0), shininess );
+        vec4  specular = Ks * specularProduct;
+        
+        if( dot(L, N) < 0.0 ) specular = vec4(0.0, 0.0, 0.0, 1.0);
+
+        fColor =  aColor + ambient + diffuse + specular;
+        fColor.a = 1.0;
+
+        gl_FragColor = fColor*texture2D( texture, fTexCoord );
+    }
+    </script>
+
+<link rel="stylesheet" href="styles.css">
+<script type="text/javascript" src="Common/webgl-utils.js"></script>
+<script type="text/javascript" src="Common/initShaders.js"></script>
+<script type="text/javascript" src="Common/MV.js"></script>
+<script type="text/javascript" src="knot.js"></script>
+
+
+<body>
+    <div class="flexcont">
+        <div class="canv-div" style="width: 70%; float: left;">
+            <canvas id="gl-canvas" width="1000" height="1000">
+            Oops ... your browser doesn't support the HTML5 canvas element
+            </canvas>
+        </div>
+        <div class="rhs">
+            <div id="button-container">
+                <div id="buttonCont">
+
+                </div>
+            </div>
+            <button id = "Button1" class="btn">Increase Z</button>
+            <button id = "Button2" class="btn">Decrease Z</button>
+            <button id = "Button3" class="btn">Increase R</button>
+            <button id = "Button4" class="btn">Decrease R</button><br/>
+
+            <button id = "Button9" class="btn">Wider</button>
+            <button id = "Button10" class="btn">Narrower</button>
+            <button id = "Button11" class="btn">Higher</button>
+            <button id = "Button12" class="btn">Shorter</button>
+
+            </br><span class="tts"> Camera Rotations: </span></br>
+
+            <div id="sliderTheta">
+                <span class="sliderTag"> Theta: </span> <span class="sliderRange"> -90 </span> <input id="slide" type="range" class="rangeSld"
+                min="-90" max="90" step="1" value="0"
+                />
+                <span class="sliderRange"> 90 </span>
+            </div><br/>
+
+            <div id="sliderPhi">
+                <span class="sliderTag"> Phi: </span> <span class="sliderRange"> -180 </span> <input id="slide" type="range" class="rangeSld"
+                min="-180" max="180" step="1" value="0"
+                />
+                <span class="sliderRange"> 180 </span>
+            </div><br/>
+
+            <div id="sliderZoom">
+                <span class="sliderTag"> Zoom: </span> <span class="sliderRange"> 10x </span> <input id="slide" type="range" class="rangeSld"
+                min="0.1" max="1.8" step="0.1" value="1"
+                />
+                <span class="sliderRange"> -8x </span>
+            </div><br/>
+
+            </br><span class="tts"> Torus Knot Parameters: </span></br>
+
+            <div id="sliderTRadius">
+                <span class="sliderTag"> Torus Radius: </span> <span class="sliderRange"> 0.1 </span> <input id="slide" type="range" class="rangeSld"
+                min="0.1" max="0.8" step="0.05" value="0.5"
+                />
+                <span class="sliderRange"> 0.8 </span>
+            </div><br/>
+            <input type="number" placeholder="Default value is 5" id="qvalue" name="qvalue">
+            <button id = "ButtonQ" class="btn">Change q Value</button></br>
+            <input type="number" placeholder="Default value is 3" id="pvalue" name="pvalue">
+            <button id = "ButtonP" class="btn">Change p Value</button></br>
+            <input type="number" placeholder="Default value is 0.35" step="0.01" id="zcoef" name="zcoef">
+            <button id = "ButtonZC" class="btn">Change Depth Coefficient</button></br>
+            <input type="number" placeholder="Default value is 10" id="zsin" name="zsin">
+            <button id = "ButtonZS" class="btn">Change z Curve</button></br>
+            <input type="number" placeholder="Default value is 4" id="tsize" name="tsize">
+            <button id = "ButtonTS" class="btn">Change Torus Size</button></br>
+            <input type="number" placeholder="Default value is 0.5" step="0.01" id="icurve" name="icurve">
+            <button id = "ButtonIC" class="btn">Change Inner Curve</button></br>
+            <input type="number" placeholder="Default value is 0.75" step="0.01" id="ocurve" name="ocurve">
+            <button id = "ButtonOC" class="btn">Change Outer Curve</button></br>
+
+            </br><span class="tts"> Surface Render Type: </span></br>
+
+            <div class="containerRD">
+                <div class="radio">
+                  <input class = "radio-input" id="1" name="radio"  type="radio" onchange="handleRBChange(this)" checked>
+                  <label for="radio-1" class="radio-label">Wireframe</label>
+                </div>
+              
+                <div class="radio">
+                  <input class = "radio-input"id="2" name="radio" type="radio" onchange="handleRBChange(this)">
+                  <label for="radio-2" class="radio-label">Gouraud Shaded</label>
+                </div>
+
+                <div class="radio">
+                    <input class = "radio-input" id="3" name="radio" type="radio" onchange="handleRBChange(this)">
+                    <label for="radio-3" class="radio-label">Phong Shaded</label>
+                </div>
+            </div>
+            </br><span class="tts"> Light Positions: </span></br>
+            <button id = "ButtonL1" class="btn">Light X +</button>
+            <button id = "ButtonL2" class="btn">Light X -</button><br/>
+            <button id = "ButtonL3" class="btn">Light Y +</button>
+            <button id = "ButtonL4" class="btn">Light Y -</button><br/>
+            <button id = "ButtonL5" class="btn">Light Z +</button>
+            <button id = "ButtonL6" class="btn">Light Z -</button>
+
+        </div>
+    </div>
+</body>
+</html>
